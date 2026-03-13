@@ -1,22 +1,29 @@
 # app.py
-from flask import Flask, render_template, request, flash, redirect, url_for
+from flask import Flask, render_template, request
 import pandas as pd
 import pickle
 import os
-from werkzeug.utils import secure_filename
+
+# ─── Important for headless servers (Render, Heroku, etc.) ──────────────────────
+import matplotlib
+matplotlib.use('Agg')           # Must be before importing pyplot
+import matplotlib.pyplot as plt
+import seaborn as sns
 
 app = Flask(__name__)
-app.secret_key = "super-secret-change-me-2025"   # change this!!!
+app.secret_key = os.environ.get("SECRET_KEY", "super-secret-change-me-2025")  # better to use env var on Render
 
-# Increase if needed — but Render free has memory limit
+# Optional: limit upload size (Render free tier is memory constrained)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024   # 5 MB
 
+# Load model & scaler (with graceful fallback)
+model = None
+scaler = None
 try:
     model = pickle.load(open("model.pkl", "rb"))
     scaler = pickle.load(open("scaler.pkl", "rb"))
 except Exception as e:
-    print("Model loading failed!", e)
-    model = scaler = None
+    print("Model loading failed:", e)
 
 ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
 
@@ -42,6 +49,8 @@ def index():
     sessions = None
     rows_processed = None
     error = None
+    pred_dist_plot = None
+    timeseries_plot = None
 
     if request.method == "POST":
         if "file" not in request.files:
@@ -55,15 +64,18 @@ def index():
 
         if file and allowed_file(file.filename):
             try:
+                # Read file
                 if file.filename.endswith('.csv'):
                     df = pd.read_csv(file)
                 else:
                     df = pd.read_excel(file)
 
-                if not all(col in df.columns for col in ["heart_rate", "spo2", "temperature", "vibration"]):
-                    error = "File must contain columns: heart_rate, spo2, temperature, vibration"
+                required_cols = ["heart_rate", "spo2", "temperature", "vibration"]
+                if not all(col in df.columns for col in required_cols):
+                    error = f"File must contain columns: {', '.join(required_cols)}"
                 else:
-                    X = df[["heart_rate", "spo2", "temperature", "vibration"]]
+                    # Prepare data
+                    X = df[required_cols]
                     X_scaled = scaler.transform(X)
                     preds = model.predict(X_scaled)
 
@@ -71,8 +83,53 @@ def index():
                     sessions = count_seizure_sessions(preds)
                     rows_processed = len(df)
 
-                    # Show only first 100 rows to avoid huge page
-                    table_html = df.head(100).to_html(classes="table table-dark table-striped", index=False)
+                    # ─── Generate plots ───────────────────────────────────────────────
+                    plots_dir = os.path.join('static', 'plots')
+                    os.makedirs(plots_dir, exist_ok=True)
+
+                    # Optional: clean old plots (prevents disk filling up over many requests)
+                    for old_file in os.listdir(plots_dir):
+                        os.remove(os.path.join(plots_dir, old_file))
+
+                    # Plot 1: Count of predicted classes
+                    fig, ax = plt.subplots(figsize=(6, 4))
+                    sns.countplot(x=df["seizure_prediction"], ax=ax, palette="Blues_d")
+                    ax.set_title("Predicted Seizure vs Non-Seizure")
+                    ax.set_xlabel("Prediction (0 = Normal, 1 = Seizure)")
+                    ax.set_ylabel("Count")
+                    plt.tight_layout()
+                    pred_dist_path = os.path.join(plots_dir, 'prediction_distribution.png')
+                    plt.savefig(pred_dist_path, dpi=120, bbox_inches='tight')
+                    plt.close(fig)
+                    pred_dist_plot = '/static/plots/prediction_distribution.png'
+
+                    # Plot 2: Time series overlay (heart rate + predictions)
+                    if 'heart_rate' in df.columns:
+                        fig, ax = plt.subplots(figsize=(10, 4.5))
+                        ax.plot(df.index, df['heart_rate'], label='Heart Rate', color='#1e88e5', linewidth=1.2)
+                        ax.set_ylabel("Heart Rate (bpm)", color='#1e88e5')
+                        ax.tick_params(axis='y', labelcolor='#1e88e5')
+
+                        ax2 = ax.twinx()
+                        ax2.plot(df.index, df["seizure_prediction"], label='Seizure Prediction',
+                                 color='#d81b60', linewidth=1.8, alpha=0.7)
+                        ax2.set_ylabel("Prediction (1 = Seizure)", color='#d81b60')
+                        ax2.tick_params(axis='y', labelcolor='#d81b60')
+                        ax2.set_yticks([0, 1])
+
+                        fig.suptitle("Heart Rate with Seizure Predictions Overlay", fontsize=14)
+                        fig.legend(loc='upper center', bbox_to_anchor=(0.5, -0.05), ncol=2)
+                        plt.tight_layout()
+                        timeseries_path = os.path.join(plots_dir, 'timeseries_overlay.png')
+                        plt.savefig(timeseries_path, dpi=120, bbox_inches='tight')
+                        plt.close(fig)
+                        timeseries_plot = '/static/plots/timeseries_overlay.png'
+
+                    # Prepare preview table (first 100 rows)
+                    table_html = df.head(100).to_html(
+                        classes="table table-dark table-striped table-hover",
+                        index=False
+                    )
 
             except Exception as e:
                 error = f"Error processing file: {str(e)}"
@@ -84,8 +141,10 @@ def index():
         table=table_html,
         sessions=sessions,
         rows_processed=rows_processed,
-        error=error
+        error=error,
+        pred_dist_plot=pred_dist_plot,
+        timeseries_plot=timeseries_plot
     )
 
 if __name__ == "__main__":
-    app.run(debug=True,host='0.0.0.0', port=5000)   # only local — Render uses gunicorn
+    app.run(debug=True, host='0.0.0.0', port=5000)
