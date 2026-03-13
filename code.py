@@ -155,3 +155,54 @@ pickle.dump(best_model, open("model.pkl","wb"))
 pickle.dump(scaler, open("scaler.pkl","wb"))
 
 print("Model saved successfully")
+
+from flask import Flask, render_template, request
+import pandas as pd
+
+app = Flask(__name__)
+
+def count_sessions(predictions):
+
+    sessions = 0
+    active = False
+
+    for p in predictions:
+
+        if p == 1 and not active:
+            sessions += 1
+            active = True
+
+        elif p == 0:
+            active = False
+
+    return sessions
+
+
+@app.route("/", methods=["GET", "POST"])
+def index():
+
+    table = None
+    sessions = None
+
+    if request.method == "POST":
+
+        file = request.files["file"]
+
+        df = pd.read_excel(file)
+
+        # placeholder predictions
+        df["seizure_prediction"] = 0
+
+        sessions = 0
+
+        table = df.head(30).to_html(classes="table table-dark table-striped")
+
+    return render_template(
+        "index.html",
+        table=table,
+        sessions=sessions
+    )
+
+
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=5000)
