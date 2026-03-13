@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+<title>Seizure Detection Dashboard</title>
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<link rel="stylesheet" href="/static/style.css">
+
+</head>
+
+<body>
+
+<div class="container-fluid">
+
+<div class="row">
+
+<!-- Sidebar -->
+
+<div class="col-md-3 sidebar">
+
+<h3 class="mt-4">Seizure Analyzer</h3>
+
+<p class="text-muted">Upload physiological dataset</p>
+
+<form method="POST" enctype="multipart/form-data">
+
+<div class="mb-3">
+<input type="file" name="file" class="form-control" required>
+</div>
+
+<button class="btn btn-primary w-100">Run Analysis</button>
+
+</form>
+
+</div>
+
+
+<!-- Main Content -->
+
+<div class="col-md-9 main-content">
+
+<h1 class="mt-4">Physiological Seizure Detection</h1>
+
+<p class="text-muted">
+Upload physiological sensor data to detect seizure events using ML classification.
+</p>
+
+{% if sessions %}
+
+<div class="alert alert-warning">
+
+<strong>Total Seizure Sessions Detected:</strong> {{sessions}}
+
+</div>
+
+{% endif %}
+
+{% if table %}
+
+<h3>Dataset Preview</h3>
+
+<div class="table-responsive">
+
+{{table|safe}}
+
+</div>
+
+{% endif %}
+
+</div>
+
+</div>
+
+</div>
+
+</body>
+
+</html>
