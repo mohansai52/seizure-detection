@@ -1,82 +1,48 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-
 <head>
-
-<meta charset="UTF-8">
-<title>Seizure Detection Dashboard</title>
-
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-
-<link rel="stylesheet" href="/static/style.css">
-
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Seizure Detection Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 </head>
+<body class="bg-dark text-light">
 
-<body>
+<div class="container mt-5">
+  <h1 class="text-center mb-4">Epileptic Seizure Detection</h1>
 
-<div class="container-fluid">
+  {% if error %}
+    <div class="alert alert-danger">{{ error }}</div>
+  {% endif %}
 
-<div class="row">
+  <div class="card bg-secondary mb-4">
+    <div class="card-body">
+      <form method="post" enctype="multipart/form-data">
+        <div class="mb-3">
+          <label for="file" class="form-label">Upload physiological data (.csv or .xlsx)</label>
+          <input class="form-control" type="file" id="file" name="file" accept=".csv,.xlsx,.xls" required>
+        </div>
+        <button type="submit" class="btn btn-primary">Analyze</button>
+      </form>
+    </div>
+  </div>
 
-<!-- Sidebar -->
+  {% if sessions is not none %}
+    <div class="alert alert-info">
+      <h4>Result</h4>
+      <p>Rows processed: <strong>{{ rows_processed }}</strong></p>
+      <p>Detected seizure sessions: <strong>{{ sessions }}</strong></p>
+    </div>
+  {% endif %}
 
-<div class="col-md-3 sidebar">
-
-<h3 class="mt-4">Seizure Analyzer</h3>
-
-<p class="text-muted">Upload physiological dataset</p>
-
-<form method="POST" enctype="multipart/form-data">
-
-<div class="mb-3">
-<input type="file" name="file" class="form-control" required>
+  {% if table %}
+    <h4>Preview (first 100 rows)</h4>
+    <div class="table-responsive">
+      {{ table | safe }}
+    </div>
+  {% endif %}
 </div>
 
-<button class="btn btn-primary w-100">Run Analysis</button>
-
-</form>
-
-</div>
-
-
-<!-- Main Content -->
-
-<div class="col-md-9 main-content">
-
-<h1 class="mt-4">Physiological Seizure Detection</h1>
-
-<p class="text-muted">
-Upload physiological sensor data to detect seizure events using ML classification.
-</p>
-
-{% if sessions %}
-
-<div class="alert alert-warning">
-
-<strong>Total Seizure Sessions Detected:</strong> {{sessions}}
-
-</div>
-
-{% endif %}
-
-{% if table %}
-
-<h3>Dataset Preview</h3>
-
-<div class="table-responsive">
-
-{{table|safe}}
-
-</div>
-
-{% endif %}
-
-</div>
-
-</div>
-
-</div>
-
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 </body>
-
 </html>
