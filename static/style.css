@@ -1,0 +1,40 @@
+body {
+
+background-color: #0f172a;
+color: white;
+
+}
+
+.sidebar {
+
+background-color: #1e293b;
+height: 100vh;
+padding: 30px;
+
+}
+
+.main-content {
+
+padding: 40px;
+
+}
+
+.table {
+
+color: white;
+
+}
+
+.btn-primary {
+
+background-color: #3b82f6;
+border: none;
+
+}
+
+.alert-warning {
+
+background-color: #f59e0b;
+border: none;
+
+}
