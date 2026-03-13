@@ -35,6 +35,25 @@
       <p>Detected seizure sessions: <strong>{{ sessions }}</strong></p>
     </div>
   {% endif %}
+  {% if pred_dist_plot or timeseries_plot %}
+  <div class="mt-5">
+    <h4 class="mb-4">Visualization of Results</h4>
+    
+    {% if pred_dist_plot %}
+      <div class="mb-4">
+        <h5>Prediction Distribution</h5>
+        <img src="{{ pred_dist_plot }}" alt="Prediction Distribution" class="img-fluid rounded shadow" style="max-height: 380px;">
+      </div>
+    {% endif %}
+
+    {% if timeseries_plot %}
+      <div class="mb-4">
+        <h5>Heart Rate & Seizure Predictions Over Time</h5>
+        <img src="{{ timeseries_plot }}" alt="Time Series Overlay" class="img-fluid rounded shadow" style="max-width: 100%;">
+      </div>
+    {% endif %}
+  </div>
+{% endif %}
 
   {% if table %}
     <h4>Preview (first 100 rows)</h4>
