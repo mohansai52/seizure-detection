@@ -3,6 +3,6 @@ seaborn
 flask==3.0.3
 pandas==2.2.2
 numpy==1.26.4
-scikit-learn
+scikit-learn==1.5.1
 gunicorn==22.0.0
 openpyxl==3.1.5          # if you want to keep Excel support
