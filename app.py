@@ -1,27 +1,27 @@
 # app.py
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, jsonify
 import pandas as pd
 import pickle
 import os
 
-# ─── Important for headless servers (Render, Heroku, etc.) ──────────────────────
+# For headless servers
 import matplotlib
-matplotlib.use('Agg')           # Must be before importing pyplot
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
 app = Flask(__name__)
-app.secret_key = os.environ.get("SECRET_KEY", "super-secret-change-me-2025")  # better to use env var on Render
+app.secret_key = os.environ.get("SECRET_KEY", "super-secret-change-me-2025")
 
-# Optional: limit upload size (Render free tier is memory constrained)
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024   # 5 MB
 
-# Load model & scaler (with graceful fallback)
+# Load model & scaler
 model = None
 scaler = None
 try:
     model = pickle.load(open("model.pkl", "rb"))
     scaler = pickle.load(open("scaler.pkl", "rb"))
+    print("Model and scaler loaded successfully!")
 except Exception as e:
     print("Model loading failed:", e)
 
@@ -30,6 +30,48 @@ ALLOWED_EXTENSIONS = {'csv', 'xlsx', 'xls'}
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+# ====================== NEW: CORE FUNCTION ======================
+def process_incoming_data(row_dict):
+    """Takes one sensor reading and returns prediction"""
+    try:
+        features = pd.DataFrame([[
+            float(row_dict['heart_rate']),
+            float(row_dict['spo2']),
+            float(row_dict['temperature']),
+            float(row_dict['vibration'])
+        ]], columns=["heart_rate", "spo2", "temperature", "vibration"])
+
+        X_scaled = scaler.transform(features)
+        prediction = model.predict(X_scaled)[0]
+        probability = model.predict_proba(X_scaled)[0][1] if hasattr(model, 'predict_proba') else None
+
+        return {
+            "prediction": int(prediction),
+            "probability": float(probability) if probability is not None else None,
+            "is_seizure": bool(prediction == 1)
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+# ====================== NEW: REAL-TIME API ======================
+@app.route("/api/predict", methods=["POST"])
+def predict():
+    if model is None or scaler is None:
+        return jsonify({"error": "Model not loaded"}), 500
+
+    data = request.get_json()
+    if not data:
+        return jsonify({"error": "No data received"}), 400
+
+    result = process_incoming_data(data)
+    return jsonify(result)
+
+# ====================== NEW: REAL-TIME PAGE ======================
+@app.route("/realtime")
+def realtime():
+    return render_template("realtime.html")
+
+# ====================== YOUR EXISTING CODE (unchanged) ======================
 def count_seizure_sessions(predictions):
     if len(predictions) == 0:
         return 0
@@ -42,7 +84,7 @@ def count_seizure_sessions(predictions):
         elif p == 0:
             active = False
     return sessions
-
+    
 @app.route("/", methods=["GET", "POST"])
 def index():
     table_html = None
@@ -148,3 +190,4 @@ def index():
 
 if __name__ == "__main__":
     app.run(debug=True, host='0.0.0.0', port=5000)
+
