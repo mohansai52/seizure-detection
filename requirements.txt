@@ -7,3 +7,4 @@ openpyxl==3.1.5          # if you want to keep Excel support
 matplotlib==3.9.2          
 seaborn==0.13.2
 Flask-Cors
+requests
