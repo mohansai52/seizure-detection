@@ -11,6 +11,7 @@ matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import seaborn as sns
 
+
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 app.secret_key = os.environ.get("SECRET_KEY", "super-secret-change-me-2025")
@@ -86,7 +87,45 @@ def count_seizure_sessions(predictions):
         elif p == 0:
             active = False
     return sessions
-    
+# Send SMS via Fast2SMS
+@app.route("/send_sms", methods=["POST"])
+def send_sms():
+    data = request.get_json()
+    phone = data.get("phone")
+    message = data.get("message", "Seizure detected! Immediate attention required.")
+
+    if not phone or len(phone) < 10:
+        return jsonify({"error": "Invalid phone number"}), 400
+
+    auth_key = os.environ.get('FAST2SMS_AUTH_KEY')
+    if not auth_key:
+        return jsonify({"error": "SMS service not configured"}), 500
+
+    try:
+        url = "https://www.fast2sms.com/dev/bulkV2"
+        
+        payload = {
+            "route": "q",
+            "message": message,
+            "language": "english",
+            "flash": 0,
+            "numbers": phone
+        }
+
+        headers = {
+            'authorization': os.environ.get('FAST2SMS_AUTH_KEY'),   
+            'Content-Type': "application/json"
+        }
+
+        response = requests.post(url, json=payload, headers=headers)
+        
+        if response.status_code == 200:
+            return jsonify({"success": True, "message": "SMS sent successfully"})
+        else:
+            return jsonify({"success": False, "error": response.text}), 400
+
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
 @app.route("/", methods=["GET", "POST"])
 def index():
     table_html = None
