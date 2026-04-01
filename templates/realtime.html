@@ -7,35 +7,32 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { background-color: #0f172a; color: #e2e8f0; }
-        .log { background: #1e2937; height: 480px; overflow-y: auto; padding: 15px; border-radius: 8px; font-family: monospace; }
-        .seizure-alert { font-size: 2.1rem; animation: pulse 1s infinite; }
-        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.06); } }
+        .log { background: #1e2937; height: 500px; overflow-y: auto; padding: 15px; border-radius: 8px; font-family: monospace; }
+        .seizure-alert { font-size: 2.2rem; animation: pulse 1.2s infinite; }
+        @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(1.08); } }
     </style>
 </head>
 <body>
 <div class="container mt-5">
     <h1 class="text-center mb-4">🔴 Live Seizure Detection Monitor</h1>
     
-    <div class="alert alert-info text-center">
-        Receiving data from Flutter App / Wearable...
-    </div>
+    <div class="alert alert-info" id="info">Waiting for data from Flutter app...</div>
 
     <div class="row">
         <div class="col-md-8">
-            <h5>Live Data Log</h5>
+            <h5>Live Log</h5>
             <div id="log" class="log"></div>
         </div>
         <div class="col-md-4">
-            <h5>Current Status</h5>
-            <div id="status" class="alert alert-secondary">Waiting for data...</div>
+            <h5>Status</h5>
+            <div id="status" class="alert alert-secondary">No data received yet</div>
             <h5>Seizure Sessions</h5>
-            <div id="sessions" class="alert alert-warning">0 Sessions Detected</div>
+            <div id="sessions" class="alert alert-warning">0 Sessions</div>
         </div>
     </div>
 
     <div id="bigAlert" class="alert alert-danger seizure-alert text-center mt-4" style="display:none;">
-        🚨 <strong>SEIZURE DETECTED!</strong> 🚨<br>
-        <small>Immediate medical attention required</small>
+        🚨 <strong>SEIZURE DETECTED!</strong> 🚨
     </div>
 </div>
 
@@ -43,16 +40,35 @@
     let sessionCount = 0;
     let consecutive = 0;
 
-    function addLog(message, isSeizure = false) {
+    function addLog(msg, isSeizure = false) {
         const log = document.getElementById('log');
         const time = new Date().toLocaleTimeString();
-        const color = isSeizure ? 'text-danger fw-bold' : 'text-light';
-        log.innerHTML += `<div class="${color}">[${time}] ${message}</div>`;
+        log.innerHTML += `<div class="${isSeizure ? 'text-danger' : 'text-light'}">[${time}] ${msg}</div>`;
         log.scrollTop = log.scrollHeight;
     }
 
-    // This function is called when data is received from Flutter
-    async function handleIncomingData(data) {
+    // Test function - you can call this from console for debugging
+    async function testApi() {
+        try {
+            const res = await fetch('/api/predict', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({
+                    "heart_rate": 145,
+                    "spo2": 88,
+                    "temperature": 38.2,
+                    "vibration": 0.9
+                })
+            });
+            const data = await res.json();
+            addLog("Test API response: " + JSON.stringify(data), data.prediction === 1);
+        } catch(e) {
+            addLog("Test failed: " + e, true);
+        }
+    }
+
+    // This is the main function (called when Flutter sends data)
+    window.handleIncomingData = async function(data) {
         try {
             const res = await fetch('/api/predict', {
                 method: 'POST',
@@ -60,25 +76,21 @@
                 body: JSON.stringify(data)
             });
 
-            const result = await res.json();
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
+            const result = await res.json();
             const isSeizure = result.prediction === 1;
             const prob = result.probability ? (result.probability * 100).toFixed(1) + '%' : 'N/A';
 
-            addLog(
-                `HR:${data.heart_rate} | SpO2:${data.spo2} | Temp:${data.temperature} | Vib:${data.vibration} → ${isSeizure ? 'SEIZURE' : 'Normal'} (${prob})`,
-                isSeizure
-            );
+            addLog(`HR:${data.heart_rate} | SpO2:${data.spo2} | Temp:${data.temperature} | Vib:${data.vibration} → ${isSeizure ? 'SEIZURE' : 'Normal'} (${prob})`, isSeizure);
 
-            document.getElementById('status').innerHTML = `
-                Latest: <strong>${isSeizure ? 'SEIZURE' : 'Normal'}</strong> (${prob})
-            `;
+            document.getElementById('status').innerHTML = `Latest: <strong>${isSeizure ? 'SEIZURE' : 'Normal'}</strong> (${prob})`;
 
             if (isSeizure) {
                 consecutive++;
                 if (consecutive >= 2) {
                     sessionCount++;
-                    document.getElementById('sessions').innerHTML = `Sessions Detected: <strong>${sessionCount}</strong>`;
+                    document.getElementById('sessions').innerHTML = `Sessions: <strong>${sessionCount}</strong>`;
                     document.getElementById('bigAlert').style.display = 'block';
                 }
             } else {
@@ -86,17 +98,20 @@
                 document.getElementById('bigAlert').style.display = 'none';
             }
         } catch (err) {
-            addLog("❌ Error processing data from Flutter", true);
+            addLog(`❌ Fetch Error: ${err.message}`, true);
             console.error(err);
         }
-    }
+    };
 
-    // Optional: Auto-refresh status every few seconds (for visibility)
+    // Auto test every 8 seconds to show activity
     setInterval(() => {
-        if (document.getElementById('log').innerHTML === '') {
-            document.getElementById('status').innerHTML = "Waiting for data from Flutter app...";
+        if (document.getElementById('log').innerHTML.length < 50) {
+            addLog("Still waiting for data from Flutter app...", false);
         }
-    }, 5000);
+    }, 8000);
+
+    // Expose test function to console
+    console.log("Realtime page loaded. Type testApi() in console to test API.");
 </script>
 </body>
 </html>
