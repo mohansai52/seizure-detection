@@ -95,11 +95,11 @@ def send_sms():
     message = data.get("message", "Seizure detected! Immediate attention required.")
 
     if not phone or len(phone) < 10:
-        return jsonify({"error": "Invalid phone number"}), 400
+        return jsonify({"success": False, "error": "Invalid phone number"}), 400
 
     auth_key = os.environ.get('FAST2SMS_AUTH_KEY')
     if not auth_key:
-        return jsonify({"error": "SMS service not configured"}), 500
+        return jsonify({"success": False, "error": "FAST2SMS_AUTH_KEY not set in environment"}), 500
 
     try:
         url = "https://www.fast2sms.com/dev/bulkV2"
@@ -113,18 +113,21 @@ def send_sms():
         }
 
         headers = {
-            'authorization': os.environ.get('FAST2SMS_AUTH_KEY'),   
+            'authorization': auth_key,
             'Content-Type': "application/json"
         }
 
-        response = requests.post(url, json=payload, headers=headers)
+        response = requests.post(url, json=payload, headers=headers, timeout=10)
         
+        print(f"Fast2SMS Response: {response.status_code} - {response.text}")  # For debugging
+
         if response.status_code == 200:
-            return jsonify({"success": True, "message": "SMS sent successfully"})
+            return jsonify({"success": True, "message": "SMS sent"})
         else:
-            return jsonify({"success": False, "error": response.text}), 400
+            return jsonify({"success": False, "error": f"Fast2SMS error: {response.text}"}), 400
 
     except Exception as e:
+        print(f"SMS Exception: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 @app.route("/", methods=["GET", "POST"])
 def index():
