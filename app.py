@@ -4,7 +4,7 @@ from flask_cors import CORS
 import pandas as pd
 import pickle
 import os
-
+import requests
 # For headless servers
 import matplotlib
 matplotlib.use('Agg')
