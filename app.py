@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
 app.secret_key = os.environ.get("SECRET_KEY", "super-secret-change-me-2025")
 
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024   # 5 MB
