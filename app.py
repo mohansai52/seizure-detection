@@ -1,5 +1,6 @@
 # app.py
 from flask import Flask, render_template, request, jsonify
+from flask_cors import CORS
 import pandas as pd
 import pickle
 import os
@@ -11,6 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 
 app = Flask(__name__)
+CORS(app)
 app.secret_key = os.environ.get("SECRET_KEY", "super-secret-change-me-2025")
 
 app.config['MAX_CONTENT_LENGTH'] = 5 * 1024 * 1024   # 5 MB
