@@ -99,7 +99,7 @@ def send_sms():
 
     auth_key = os.environ.get('FAST2SMS_AUTH_KEY')
     if not auth_key:
-        return jsonify({"success": False, "error": "FAST2SMS_AUTH_KEY not set in environment"}), 500
+        return jsonify({"success": False, "error": "FAST2SMS_AUTH_KEY not set in environment variables"}), 500
 
     try:
         url = "https://www.fast2sms.com/dev/bulkV2"
@@ -119,12 +119,12 @@ def send_sms():
 
         response = requests.post(url, json=payload, headers=headers, timeout=10)
         
-        print(f"Fast2SMS Response: {response.status_code} - {response.text}")  # For debugging
+        print(f"Fast2SMS Response: {response.status_code} - {response.text}")
 
         if response.status_code == 200:
             return jsonify({"success": True, "message": "SMS sent"})
         else:
-            return jsonify({"success": False, "error": f"Fast2SMS error: {response.text}"}), 400
+            return jsonify({"success": False, "error": response.text}), 400
 
     except Exception as e:
         print(f"SMS Exception: {str(e)}")
