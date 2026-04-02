@@ -97,37 +97,31 @@ def send_sms():
     if not phone or len(phone) < 10:
         return jsonify({"success": False, "error": "Invalid phone number"}), 400
 
-    auth_key = os.environ.get('FAST2SMS_AUTH_KEY')
-    if not auth_key:
-        return jsonify({"success": False, "error": "FAST2SMS_AUTH_KEY not set in environment variables"}), 500
+    account_sid = os.environ.get('TWILIO_ACCOUNT_SID')
+    auth_token = os.environ.get('TWILIO_AUTH_TOKEN')
+    twilio_number = os.environ.get('TWILIO_PHONE_NUMBER')
+
+    if not account_sid or not auth_token or not twilio_number:
+        return jsonify({"success": False, "error": "Twilio credentials not set in environment"}), 500
 
     try:
-        url = "https://www.fast2sms.com/dev/bulkV2"
-        
-        payload = {
-            "route": "q",
-            "message": message,
-            "language": "english",
-            "flash": 0,
-            "numbers": phone
-        }
+        from twilio.rest import Client
+        client = Client(account_sid, auth_token)
 
-        headers = {
-            'authorization': auth_key,
-            'Content-Type': "application/json"
-        }
+        # Add +91 for Indian numbers
+        to_number = f"+91{phone}" if not phone.startswith('+') else phone
 
-        response = requests.post(url, json=payload, headers=headers, timeout=10)
-        
-        print(f"Fast2SMS Response: {response.status_code} - {response.text}")
+        sms = client.messages.create(
+            body=message,
+            from_=twilio_number,
+            to=to_number
+        )
 
-        if response.status_code == 200:
-            return jsonify({"success": True, "message": "SMS sent"})
-        else:
-            return jsonify({"success": False, "error": response.text}), 400
+        print(f"Twilio SMS sent: {sms.sid}")
+        return jsonify({"success": True, "message": "SMS sent via Twilio", "sid": sms.sid})
 
     except Exception as e:
-        print(f"SMS Exception: {str(e)}")
+        print(f"Twilio Exception: {str(e)}")
         return jsonify({"success": False, "error": str(e)}), 500
 @app.route("/", methods=["GET", "POST"])
 def index():
