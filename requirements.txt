@@ -8,3 +8,4 @@ matplotlib==3.9.2
 seaborn==0.13.2
 Flask-Cors
 requests
+twilio
